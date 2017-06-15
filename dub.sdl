@@ -1,0 +1,5 @@
+name "genmanpage"
+description "A converter of DUB help messages into manpages"
+authors "michail"
+copyright "Copyright © 2017, michail"
+license "Boost"
