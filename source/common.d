@@ -136,9 +136,7 @@ prettyWord(bool replace = false, bool doBoldify = false)
         % (res, s) => res ~ ' ';
 }
 
-/* Options block. Ends either with (something \n =======) or with DUB version
-   line. A new section separator will result in a new section being inserted.
-   */
+/* Options block. */
 auto
 options()
 {
@@ -152,13 +150,33 @@ options()
         / many(1, -1, oneName)
         % ((res, s) => res ~ '\n')
         / maybeWhite!string;
+    /* To work with lists, we need to know starting indentation. */
+    struct List 
+    {
+        size_t indent;
+        string text;
+        List setIndent(size_t to) { auto res = this; res.indent = to; return res; }
+        List addText(string str) { auto res = this; res.text ~= str; return res; }
+    }
+    import std.conv;
+    auto list = line!List(false)
+        / test!List((res, s) => s.strip.endsWith(":"))
+        % ((res, s) => res.setIndent(s.whitePrefix))
+        % ((res, s) => res.addText(s.strip ~ "\n.nf\n"))
+        / repeatWhile!List((res, s, i) => s.whitePrefix > res.indent,
+                line!List(false)
+                % ((res, s) => res.addText(s.strip ~ '\n')))
+        % ((res, s) => res.addText(".fi\n"));
+    auto absorbList = absorb!(string, List)(
+            (res, lst, s) => res ~ lst.text,
+            list);
     auto descr = line!string(false)
         / test!string((res, s) => !s.startsWith("DUB")) /* version line. */
         % ((res, s) => res ~ ' ' ~ s.strip ~ ' ')
         / maybe(someNewlines!string);
     auto section = sectionSeparator(false);
     return build!string((res, s) => "")
-        / many(0, -1, section | allNames | descr);
+        / many(0, -1, section | allNames | absorbList | descr);
 }
 
 /* A section separator - two lines, the second is many '='s. */
@@ -226,4 +244,16 @@ writeFiles(File manpage)
     manpage.writeln();
     manpage.writeln(".SH FILES");
     manpage.writeln("dub.sdl, dub.json");
+}
+
+/* Returns the number of leading spaces. */
+size_t
+whitePrefix(string str)
+{
+    import std.uni;
+
+    size_t res = 0;
+    size_t len = str.length;
+    while (res < len && str[res].isWhite) res++;
+    return res;
 }
