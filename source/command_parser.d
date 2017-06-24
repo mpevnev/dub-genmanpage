@@ -35,30 +35,34 @@ final class CommandParser
         /* Parse DUB's output, write manpage to the file. */
         void run(string[] otherCmds)
         {
+            import parsed.extras;
+
             import common;
 
             auto text = helpOutput;
-            auto state = ParserState(text);
+            auto state = ParserState!string(text);
 
             /* Write the header. */
             manpage.writeln(".TH DUB-", cmd, " \"1\"");
             manpage.writeln(".SH NAME");
-            manpage.writeln(r"dub\-", cmd, r" \- "); /* This would have to be
-                                                        filled manually. */
+            /* This would have to be filled manually. */
+            manpage.writeln(r"dub\-", cmd, r" \- "); 
 
             /* Write the synopsis. */
             manpage.writeln(".SH SYNOPSIS");
-            manpage.writeln(".B dub-", cmd);
-            state = synopsis!char.run(state);
-            manpage.writeln(state.returnValue);
-            manpage.writeln();
+            manpage.writeln(".B dub ");
+            state = synopsis(true).run(state);
+            assert(state.success);
+            manpage.writeln(state.value);
 
             /* Write the description. */
             state = manpage.writeDescription(state);
+            assert(state.success);
 
             /* Write the options. */
-            state = options!char.run(state);
-            manpage.writeln(state.returnValue);
+            manpage.writeln();
+            state = options.run(state);
+            manpage.writeln(state.value);
 
             /* Write FILES section. */
             manpage.writeFiles();
